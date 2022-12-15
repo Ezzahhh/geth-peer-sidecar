@@ -34,7 +34,7 @@ def patch_namespaced_config_map(namespace=cfg_namespace, body=None):
     if judge_config_map_exists(namespace, name):
         v1_batch = client.BatchV1Api()
         val = v1_batch.patch_namespaced_cron_job(name=name, namespace=namespace, body=config_map_json,
-                                           _preload_content=False, async_req=False)
+                                                 _preload_content=False, async_req=False)
         ret_dict = json.loads(val.data)
         log.info(f'patch succeed\n{json.dumps(ret_dict)}')
         return True
