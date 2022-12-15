@@ -32,7 +32,8 @@ def patch_namespaced_config_map(namespace=cfg_namespace, body=None):
         log.error('body is required!')
     name = body['metadata']['name']
     if judge_config_map_exists(namespace, name):
-        val = v1.patch_namespaced_cron_job(name=name, namespace=namespace, body=config_map_json,
+        v1_batch = client.BatchV1Api()
+        val = v1_batch.patch_namespaced_cron_job(name=name, namespace=namespace, body=config_map_json,
                                            _preload_content=False, async_req=False)
         ret_dict = json.loads(val.data)
         log.info(f'patch succeed\n{json.dumps(ret_dict)}')
@@ -94,7 +95,7 @@ if __name__ == '__main__':
         log.info(f"Sleep {str(delay)} s before attempting to create configmap")
         sleep(delay)
         create_namespaced_config_map(cfg_namespace,
-                                     get_static_config_map_body(cfg_namespace, configmap_name, [enode]))
+                                     get_static_config_map_body(cfg_namespace, configmap_name, []))
 
         while True:
             static_nodes_state = []
@@ -113,18 +114,16 @@ if __name__ == '__main__':
                 if enode not in static_nodes:
                     log.info(f'Current enode {enode} not found in configmap. Appending to state...')
                     static_nodes_state.append(enode)
-                    w3.geth.admin.add_peer(node)
+                    w3.geth.admin.add_peer(enode)
                     log.info(f'Added enode {enode} to peer list...')
                 for node in static_nodes:
                     if enode == node:
                         # we scan skip where the enode is the same as the current node
                         break
-                    ip_port = str(node).split("@")[1]
-                    _ip = ip_port.split(":")[0]
-                    _port = ip_port.split(":")[1]
-                    log.info(f'Node: {ip_port}')
+                    _ip, _port = str(node).split("@")[1].split(":")
+                    log.info(f'Node: {_ip}:{_port}')
                     if not check_port_is_alive(_ip, _port):
-                        log.info(f'Node {ip_port} is unreachable. Removing...')
+                        log.info(f'Node {_ip}:{_port} is unreachable. Removing...')
                         static_nodes_state.remove(node)
                         log.debug(f'static_nodes_state: {static_nodes_state}')
                     else:
@@ -136,9 +135,9 @@ if __name__ == '__main__':
     except FileNotFoundError:
         log.error('Could not find IPC file')
     except ConfigException as e:
-        log.error(f'Kubernetes config exception: {e}')
+        log.error(f'Kubernetes config exception', exc_info=True)
     except Exception as e:
-        log.error(f'Catch all exception: {e}')
+        log.error(f'Catch all exception', exc_info=True)
     finally:
         # remember to close the handlers
         for handler in log.handlers:
