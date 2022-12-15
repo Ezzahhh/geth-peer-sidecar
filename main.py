@@ -118,6 +118,7 @@ if __name__ == '__main__':
                     log.info(f'Added enode {enode} to peer list...')
                 for node in static_nodes:
                     if enode == node:
+                        log.info("Skipping because current enode should already be added...")
                         # we scan skip where the enode is the same as the current node
                         break
                     _ip, _port = str(node).split("@")[1].split(":")
