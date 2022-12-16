@@ -92,6 +92,7 @@ def check_port_is_alive(host, port):
     import socket
     from contextlib import closing
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+        sock.settimeout(3)
         if sock.connect_ex((host, port)) == 0:
             log.info(f'Host: {host} is alive on port {port}')
             return True
