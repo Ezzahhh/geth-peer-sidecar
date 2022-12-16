@@ -67,7 +67,7 @@ def get_static_config_map_body(namespace=cfg_namespace, name=configmap_name, sta
             "namespace": namespace,
         },
         "data": {
-            "static-nodes.json": json.dump(static_nodes)}
+            "static-nodes.json": json.dumps(static_nodes)}
     }
     return body
 
