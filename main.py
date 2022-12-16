@@ -122,11 +122,10 @@ if __name__ == '__main__':
         while True:
             check_configmap = v1.read_namespaced_config_map(configmap_name, cfg_namespace)
             static_nodes = json.loads(check_configmap.data["static-nodes.json"])
-            static_nodes.sort()
             log.info(f"Event: {check_configmap.metadata.name} {json.dumps(static_nodes)}")
-            if static_nodes_state != static_nodes:
+            if list(set(static_nodes) - set(static_nodes_state)):
                 # we will need to remove dead peers
-                static_nodes_state += static_nodes
+                static_nodes_state = set(static_nodes_state + static_nodes)
                 for node in static_nodes:
                     if enode == node:
                         log.info("Skipping because current enode should already be added...")
@@ -145,7 +144,6 @@ if __name__ == '__main__':
                 patch_namespaced_config_map(cfg_namespace, get_static_config_map_body(cfg_namespace,
                                                                                       configmap_name,
                                                                                       static_nodes_state))
-                static_nodes_state.sort()
                 log.info(f"Patched configmap with: {static_nodes_state}")
             else:
                 # if previous state and current state is equal we have nothing to do
