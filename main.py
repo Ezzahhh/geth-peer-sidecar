@@ -24,7 +24,6 @@ aApiClient = client.ApiClient(aConfiguration)
 
 # Do calls
 v1 = client.CoreV1Api(aApiClient)
-v1_batch = client.BatchV1Api(aApiClient)
 
 
 def create_namespaced_config_map(namespace=cfg_namespace, body=None):
@@ -49,7 +48,7 @@ def patch_namespaced_config_map(namespace=cfg_namespace, body=None):
         log.error('body is required!')
     name = body['metadata']['name']
     if judge_config_map_exists(namespace, name):
-        val = v1_batch.patch_namespaced_cron_job(name=name, namespace=namespace, body=config_map_json,
+        val = v1.patch_namespaced_config_map(name=name, namespace=namespace, body=config_map_json,
                                                  _preload_content=False, async_req=False)
         ret_dict = json.loads(val.data)
         log.info(f'patch succeed\n{json.dumps(ret_dict)}')
@@ -143,7 +142,7 @@ if __name__ == '__main__':
                     break
                 _ip, _port = str(node).split("@")[1].split(":")
                 log.info(f'Node: {_ip}:{_port}')
-                if not check_port_is_alive(_ip, _port):
+                if not check_port_is_alive(_ip, int(_port)):
                     log.info(f'Node {_ip}:{_port} is unreachable. Removing...')
                     static_nodes_state.remove(node)
                     log.debug(f'static_nodes_state: {static_nodes_state}')
