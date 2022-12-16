@@ -128,9 +128,11 @@ if __name__ == '__main__':
                         log.info(f"{_ip}:{_port} is alive. Adding peer to Geth...")
                 for item in items_to_remove:
                     static_nodes_state.remove(item)
-                patch_namespaced_config_map(cfg_namespace, get_static_config_map_body(cfg_namespace,
-                                                                                      configmap_name,
-                                                                                      list(static_nodes_state)))
+                if len(items_to_remove) > 0 or enode not in set(static_nodes):
+                    log.info("Patching because there are items to remove or needs to add itself")
+                    patch_namespaced_config_map(cfg_namespace, get_static_config_map_body(cfg_namespace,
+                                                                                          configmap_name,
+                                                                                          list(static_nodes_state)))
                 log.info(f"Patched configmap with: {static_nodes_state}")
             else:
                 # if previous state and current state is equal we have nothing to do
