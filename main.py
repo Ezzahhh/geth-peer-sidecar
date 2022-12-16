@@ -7,22 +7,17 @@ from web3 import Web3
 
 from logger import *
 
-config.load_incluster_config()  # get mounted serviceaccount info in pod
-
-# Create a configuration object
 aConfiguration = client.Configuration()
 
-# Specify the endpoint of your Kube cluster
-aConfiguration.host = "https://kubernetes.default.svc:443"
+with open("/run/secrets/kubernetes.io/serviceaccount/token", "r") as f:
+    aToken = f.readline()
+with open("/run/secrets/kubernetes.io/serviceaccount/ca.crt", "r") as f:
+    aConfiguration.ssl_ca_cert = f.readline()
 
-# Security part.
-# In this simple example we are not going to verify the SSL certificate of
-# the remote cluster (for simplicity reason)
-aConfiguration.verify_ssl = False
-# Nevertheless if you want to do it you can with these 2 parameters
-# configuration.verify_ssl=True
-# ssl_ca_cert is the filepath to the file that contains the certificate.
-# configuration.ssl_ca_cert="certificate"
+aConfiguration.host = "https://kubernetes.default.svc:443"
+aConfiguration.verify_ssl = True
+
+aConfiguration.api_key = {"authorization": "Bearer " + aToken}
 
 # Create a ApiClient with our config
 aApiClient = client.ApiClient(aConfiguration)
