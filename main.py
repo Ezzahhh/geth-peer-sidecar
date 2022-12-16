@@ -45,7 +45,7 @@ def patch_namespaced_config_map(namespace=cfg_namespace, body=None):
 def get_config_map_list(namespace=cfg_namespace):
     val = v1.list_namespaced_config_map(namespace=namespace, pretty=True, _preload_content=False)
     config_map_list = json.loads(val.data)
-    log.info(f'Config map number={len(config_map_list["items"])}')
+    log.debug(f'Config map number={len(config_map_list["items"])}')
     return config_map_list["items"]
 
 
@@ -132,8 +132,9 @@ if __name__ == '__main__':
             else:
                 # if previous state and current state is equal we have nothing to do
                 log.info("Nothing to do in this loop...")
-            log.info(f"Sleeping for {delay}. Waiting for next iteration...")
-            sleep(delay)
+            new_delay = randint(1, 15)
+            log.info(f"Sleeping for {new_delay}. Waiting for next iteration...")
+            sleep(new_delay)
     except FileNotFoundError:
         log.error('Could not find IPC file')
     except ConfigException as e:
