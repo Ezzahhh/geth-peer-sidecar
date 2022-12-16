@@ -121,7 +121,7 @@ if __name__ == '__main__':
                     if not check_port_is_alive(_ip, int(_port)):
                         log.info(f'{_ip}:{_port} is unreachable. Removing...')
                         items_to_remove.append(node)
-                        log.debug(f'static_nodes_state: {static_nodes_state}')
+                        log.debug(f'items to remove: {items_to_remove}')
                     else:
                         # if node in list is alive we add to geth
                         w3.geth.admin.add_peer(node)
