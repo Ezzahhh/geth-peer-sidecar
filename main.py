@@ -1,7 +1,7 @@
 import json
 from random import randint
 from time import sleep
-from kubernetes import client, config, watch
+from kubernetes import client
 from kubernetes.config import ConfigException
 from web3 import Web3
 
@@ -24,6 +24,7 @@ aApiClient = client.ApiClient(aConfiguration)
 
 # Do calls
 v1 = client.CoreV1Api(aApiClient)
+v1_batch = client.BatchV1Api(aApiClient)
 
 
 def create_namespaced_config_map(namespace=cfg_namespace, body=None):
@@ -32,7 +33,7 @@ def create_namespaced_config_map(namespace=cfg_namespace, body=None):
         log.error('body is required!')
     name = body['metadata']['name']
     if judge_config_map_exists(namespace, name):
-        log.error(f'{name} exists! Skipping create...')
+        log.warning(f'{name} exists! Skipping create...')
         return False
     else:
         val = v1.create_namespaced_config_map(namespace, config_map_json, pretty=True, _preload_content=False,
@@ -48,7 +49,6 @@ def patch_namespaced_config_map(namespace=cfg_namespace, body=None):
         log.error('body is required!')
     name = body['metadata']['name']
     if judge_config_map_exists(namespace, name):
-        v1_batch = client.BatchV1Api(aApiClient)
         val = v1_batch.patch_namespaced_cron_job(name=name, namespace=namespace, body=config_map_json,
                                                  _preload_content=False, async_req=False)
         ret_dict = json.loads(val.data)
@@ -83,7 +83,8 @@ def get_static_config_map_body(namespace=cfg_namespace, name=configmap_name, sta
             "namespace": namespace,
         },
         "data": {
-            "static-nodes.json": json.dumps(static_nodes)}
+            "static-nodes.json": json.dumps(static_nodes)
+        }
     }
     return body
 
@@ -121,42 +122,41 @@ if __name__ == '__main__':
 
         while True:
             static_nodes_state = []
-            w = watch.Watch()
-            for event in w.stream(v1.read_namespaced_config_map(configmap_name, cfg_namespace),
-                                  timeout_seconds=delay):
-                static_nodes = json.loads(event['object'].data["static-nodes.json"])
-                log.info("Event: %s %s" % event['object'].metadata.name,
-                         json.dumps(static_nodes))
-                if static_nodes_state == static_nodes:
-                    # if previous state and current state is equal we have nothing to do
-                    log.info("Nothing to do in this loop...")
+            check_configmap = v1.read_namespaced_config_map(configmap_name, cfg_namespace)
+            static_nodes = json.loads(check_configmap.data["static-nodes.json"])
+            log.info(f"Event: {check_configmap.metadata.name} {json.dumps(static_nodes)}")
+            if static_nodes_state == static_nodes:
+                # if previous state and current state is equal we have nothing to do
+                log.info("Nothing to do in this loop...")
+                break
+            # we will need to remove dead peers
+            static_nodes_state = static_nodes
+            if enode not in static_nodes:
+                log.info(f'Current enode {enode} not found in configmap. Appending to state...')
+                static_nodes_state.append(enode)
+                w3.geth.admin.add_peer(enode)
+                log.info(f'Added enode {enode} to peer list...')
+            for node in static_nodes:
+                if enode == node:
+                    log.info("Skipping because current enode should already be added...")
+                    # we scan skip where the enode is the same as the current node
                     break
-                # we will need to remove dead peers
-                static_nodes_state = static_nodes
-                if enode not in static_nodes:
-                    log.info(f'Current enode {enode} not found in configmap. Appending to state...')
-                    static_nodes_state.append(enode)
-                    w3.geth.admin.add_peer(enode)
-                    log.info(f'Added enode {enode} to peer list...')
-                for node in static_nodes:
-                    if enode == node:
-                        log.info("Skipping because current enode should already be added...")
-                        # we scan skip where the enode is the same as the current node
-                        break
-                    _ip, _port = str(node).split("@")[1].split(":")
-                    log.info(f'Node: {_ip}:{_port}')
-                    if not check_port_is_alive(_ip, _port):
-                        log.info(f'Node {_ip}:{_port} is unreachable. Removing...')
-                        static_nodes_state.remove(node)
-                        log.debug(f'static_nodes_state: {static_nodes_state}')
-                    else:
-                        # if node in list is alive we add to geth
-                        w3.geth.admin.add_peer(node)
-                        log.info(f"Node {_ip}:{_port} is alive. Adding peer to Geth...")
-                patch_namespaced_config_map(cfg_namespace, get_static_config_map_body(cfg_namespace,
-                                                                                      configmap_name,
-                                                                                      static_nodes_state))
-                log.info(f"Patched configmap with: {static_nodes_state}")
+                _ip, _port = str(node).split("@")[1].split(":")
+                log.info(f'Node: {_ip}:{_port}')
+                if not check_port_is_alive(_ip, _port):
+                    log.info(f'Node {_ip}:{_port} is unreachable. Removing...')
+                    static_nodes_state.remove(node)
+                    log.debug(f'static_nodes_state: {static_nodes_state}')
+                else:
+                    # if node in list is alive we add to geth
+                    w3.geth.admin.add_peer(node)
+                    log.info(f"Node {_ip}:{_port} is alive. Adding peer to Geth...")
+            patch_namespaced_config_map(cfg_namespace, get_static_config_map_body(cfg_namespace,
+                                                                                  configmap_name,
+                                                                                  static_nodes_state))
+            log.info(f"Patched configmap with: {static_nodes_state}")
+            log.info(f"Sleeping for {delay}. Waiting for next iteration...")
+            sleep(delay)
     except FileNotFoundError:
         log.error('Could not find IPC file')
     except ConfigException as e:
