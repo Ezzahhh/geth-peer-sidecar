@@ -7,7 +7,27 @@ from web3 import Web3
 
 from logger import *
 
-v1 = client.CoreV1Api()
+
+# Create a configuration object
+aConfiguration = client.Configuration()
+
+# Specify the endpoint of your Kube cluster
+aConfiguration.host = "https://kubernetes.default.svc:443"
+
+# Security part.
+# In this simple example we are not going to verify the SSL certificate of
+# the remote cluster (for simplicity reason)
+# aConfiguration.verify_ssl = False
+# Nevertheless if you want to do it you can with these 2 parameters
+# configuration.verify_ssl=True
+# ssl_ca_cert is the filepath to the file that contains the certificate.
+# configuration.ssl_ca_cert="certificate"
+
+# Create a ApiClient with our config
+aApiClient = client.ApiClient(aConfiguration)
+
+# Do calls
+v1 = client.CoreV1Api(aApiClient)
 
 
 def create_namespaced_config_map(namespace=cfg_namespace, body=None):
