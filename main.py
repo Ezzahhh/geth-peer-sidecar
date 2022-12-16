@@ -90,10 +90,10 @@ if __name__ == '__main__':
     enode = ""
     while not enode:
         try:
-            enode = w3.geth.admin.node_info().enode.toString()  # obtain enode of shared geth pod
+            enode = w3.geth.admin.node_info().enode # obtain enode of shared geth pod
             log.info(f"Geth online with enode: {enode}")
         except Exception as e:
-            log.error("Geth is not yet available. Retrying in 5 seconds..", exc_info=True)
+            log.error("Geth is not yet available. Retrying in 5 seconds...", exc_info=True)
             sleep(5)
     try:
         # on launch, we want to check whether the shared static config map exists, if not we will create it
