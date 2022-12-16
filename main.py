@@ -117,43 +117,46 @@ if __name__ == '__main__':
         log.info(f"Sleep {str(delay)} s before attempting to create configmap")
         sleep(delay)
         create_namespaced_config_map(cfg_namespace,
-                                     get_static_config_map_body(cfg_namespace, configmap_name, [enode]))
+                                     get_static_config_map_body(cfg_namespace, configmap_name, []))
 
         while True:
-            static_nodes_state = []
+            static_nodes_state = [enode]
             check_configmap = v1.read_namespaced_config_map(configmap_name, cfg_namespace)
             static_nodes = json.loads(check_configmap.data["static-nodes.json"])
             log.info(f"Event: {check_configmap.metadata.name} {json.dumps(static_nodes)}")
-            if static_nodes_state == static_nodes:
-                # if previous state and current state is equal we have nothing to do
-                log.info("Nothing to do in this loop...")
-                break
-            # we will need to remove dead peers
-            static_nodes_state = static_nodes
             if enode not in static_nodes:
                 log.info(f'Current enode {enode} not found in configmap. Appending to state...')
-                static_nodes_state.append(enode)
-                w3.geth.admin.add_peer(enode)
-                log.info(f'Added enode {enode} to peer list...')
-            for node in static_nodes:
-                if enode == node:
-                    log.info("Skipping because current enode should already be added...")
-                    # we scan skip where the enode is the same as the current node
-                    break
-                _ip, _port = str(node).split("@")[1].split(":")
-                log.info(f'Node: {_ip}:{_port}')
-                if not check_port_is_alive(_ip, int(_port)):
-                    log.info(f'Node {_ip}:{_port} is unreachable. Removing...')
-                    static_nodes_state.remove(node)
-                    log.debug(f'static_nodes_state: {static_nodes_state}')
+                static_nodes.append(enode)
+                if enode != node:
+                    w3.geth.admin.add_peer(enode)
+                    log.info(f'Added enode {enode} to peer list...')
                 else:
-                    # if node in list is alive we add to geth
-                    w3.geth.admin.add_peer(node)
-                    log.info(f"Node {_ip}:{_port} is alive. Adding peer to Geth...")
-            patch_namespaced_config_map(cfg_namespace, get_static_config_map_body(cfg_namespace,
-                                                                                  configmap_name,
-                                                                                  static_nodes_state))
-            log.info(f"Patched configmap with: {static_nodes_state}")
+                    log.info("No need to add itself to peer list")
+            if static_nodes_state != static_nodes:
+                # we will need to remove dead peers
+                static_nodes_state = static_nodes
+                for node in static_nodes:
+                    if enode == node:
+                        log.info("Skipping because current enode should already be added...")
+                        # we scan skip where the enode is the same as the current node
+                        break
+                    _ip, _port = str(node).split("@")[1].split(":")
+                    log.info(f'Node: {_ip}:{_port}')
+                    if not check_port_is_alive(_ip, int(_port)):
+                        log.info(f'Node {_ip}:{_port} is unreachable. Removing...')
+                        static_nodes_state.remove(node)
+                        log.debug(f'static_nodes_state: {static_nodes_state}')
+                    else:
+                        # if node in list is alive we add to geth
+                        w3.geth.admin.add_peer(node)
+                        log.info(f"Node {_ip}:{_port} is alive. Adding peer to Geth...")
+                patch_namespaced_config_map(cfg_namespace, get_static_config_map_body(cfg_namespace,
+                                                                                      configmap_name,
+                                                                                      static_nodes_state))
+                log.info(f"Patched configmap with: {static_nodes_state}")
+            else:
+                # if previous state and current state is equal we have nothing to do
+                log.info("Nothing to do in this loop...")
             log.info(f"Sleeping for {delay}. Waiting for next iteration...")
             sleep(delay)
     except FileNotFoundError:
