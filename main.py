@@ -111,7 +111,7 @@ if __name__ == '__main__':
             if set(static_nodes) != set(static_nodes_state):
                 # we will need to remove dead peers
                 static_nodes_state = set(static_nodes_state) | set(static_nodes)
-                for node in static_nodes:
+                for node in static_nodes_state:
                     if enode == node:
                         log.info("Skipping because current enode should already be added...")
                         # we scan skip where the enode is the same as the current node
