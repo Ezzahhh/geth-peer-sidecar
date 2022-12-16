@@ -7,6 +7,7 @@ from web3 import Web3
 
 from logger import *
 
+config.load_incluster_config()  # get mounted serviceaccount info in pod
 
 # Create a configuration object
 aConfiguration = client.Configuration()
@@ -17,7 +18,7 @@ aConfiguration.host = "https://kubernetes.default.svc:443"
 # Security part.
 # In this simple example we are not going to verify the SSL certificate of
 # the remote cluster (for simplicity reason)
-# aConfiguration.verify_ssl = False
+aConfiguration.verify_ssl = False
 # Nevertheless if you want to do it you can with these 2 parameters
 # configuration.verify_ssl=True
 # ssl_ca_cert is the filepath to the file that contains the certificate.
@@ -52,7 +53,7 @@ def patch_namespaced_config_map(namespace=cfg_namespace, body=None):
         log.error('body is required!')
     name = body['metadata']['name']
     if judge_config_map_exists(namespace, name):
-        v1_batch = client.BatchV1Api()
+        v1_batch = client.BatchV1Api(aApiClient)
         val = v1_batch.patch_namespaced_cron_job(name=name, namespace=namespace, body=config_map_json,
                                                  _preload_content=False, async_req=False)
         ret_dict = json.loads(val.data)
@@ -105,7 +106,6 @@ def check_port_is_alive(host, port):
 
 
 if __name__ == '__main__':
-    config.load_incluster_config()  # get mounted serviceaccount info in pod
     w3 = Web3(Web3.IPCProvider(ipc_path))  # link ipc to communicate with geth
     enode = ""
     while not enode:
