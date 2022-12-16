@@ -1,28 +1,12 @@
 import json
 from random import randint
 from time import sleep
-from kubernetes import client
 from kubernetes.config import ConfigException
 from web3 import Web3
 
 from logger import *
+from config import *
 
-aConfiguration = client.Configuration()
-
-with open("/run/secrets/kubernetes.io/serviceaccount/token", "r") as f:
-    aToken = f.readline()
-
-aConfiguration.host = "https://kubernetes.default.svc:443"
-aConfiguration.ssl_ca_cert = "/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-
-aConfiguration.verify_ssl = True
-
-aConfiguration.api_key = {"authorization": "Bearer " + aToken}
-
-# Create a ApiClient with our config
-aApiClient = client.ApiClient(aConfiguration)
-
-# Do calls
 v1 = client.CoreV1Api(aApiClient)
 
 
@@ -108,8 +92,8 @@ if __name__ == '__main__':
         try:
             enode = w3.geth.admin.node_info().enode  # obtain enode of shared geth pod
             log.info(f"Geth online with enode: {enode}")
-        except Exception as e:
-            log.error("Geth is not yet available. Retrying in 5 seconds...", exc_info=True)
+        except FileNotFoundError:
+            log.error("Geth is not yet available. Retrying in 5 seconds...")
             sleep(5)
     try:
         # on launch, we want to check whether the shared static config map exists, if not we will create it
@@ -133,15 +117,14 @@ if __name__ == '__main__':
                         # we scan skip where the enode is the same as the current node
                         continue
                     _ip, _port = str(node).split("@")[1].split(":")
-                    log.info(f'Node: {_ip}:{_port}')
                     if not check_port_is_alive(_ip, int(_port)):
-                        log.info(f'Node {_ip}:{_port} is unreachable. Removing...')
+                        log.info(f'{_ip}:{_port} is unreachable. Removing...')
                         static_nodes_state.remove(node)
                         log.debug(f'static_nodes_state: {static_nodes_state}')
                     else:
                         # if node in list is alive we add to geth
                         w3.geth.admin.add_peer(node)
-                        log.info(f"Node {_ip}:{_port} is alive. Adding peer to Geth...")
+                        log.info(f"{_ip}:{_port} is alive. Adding peer to Geth...")
                 patch_namespaced_config_map(cfg_namespace, get_static_config_map_body(cfg_namespace,
                                                                                       configmap_name,
                                                                                       list(static_nodes_state)))
