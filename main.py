@@ -85,17 +85,24 @@ def check_port_is_alive(host, port):
 
 
 if __name__ == '__main__':
+    config.load_incluster_config()  # get mounted serviceaccount info in pod
+    w3 = Web3(Web3.IPCProvider(ipc_path))  # link ipc to communicate with geth
+    enode = ""
+    while not enode:
+        try:
+            enode = w3.geth.admin.node_info().enode.toString()  # obtain enode of shared geth pod
+            log.info(f"Geth online with enode: {enode}")
+        except:
+            log.error("Geth is not yet available. Retrying in 5 seconds..")
+            sleep(5)
     try:
-        config.load_incluster_config()  # get mounted serviceaccount info in pod
-        w3 = Web3(Web3.IPCProvider(ipc_path))  # link ipc to communicate with geth
-        enode = w3.geth.admin.node_info().enode.toString()  # obtain enode of shared geth pod
         # on launch, we want to check whether the shared static config map exists, if not we will create it
         # we will sleep a random time to avoid other nodes coming up creating the configmap
         delay = randint(1, 15)
         log.info(f"Sleep {str(delay)} s before attempting to create configmap")
         sleep(delay)
         create_namespaced_config_map(cfg_namespace,
-                                     get_static_config_map_body(cfg_namespace, configmap_name, []))
+                                     get_static_config_map_body(cfg_namespace, configmap_name, [enode]))
 
         while True:
             static_nodes_state = []
@@ -130,9 +137,11 @@ if __name__ == '__main__':
                     else:
                         # if node in list is alive we add to geth
                         w3.geth.admin.add_peer(node)
+                        log.info(f"Node {_ip}:{_port} is alive. Adding peer to Geth...")
                 patch_namespaced_config_map(cfg_namespace, get_static_config_map_body(cfg_namespace,
                                                                                       configmap_name,
                                                                                       static_nodes_state))
+                log.info(f"Patched configmap with: {static_nodes_state}")
     except FileNotFoundError:
         log.error('Could not find IPC file')
     except ConfigException as e:
