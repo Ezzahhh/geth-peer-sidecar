@@ -38,14 +38,14 @@ def patch_namespaced_config_map(namespace=cfg_namespace, body=None):
         log.info(f'patch succeeded')
         return True
     else:
-        log.error(f"{name} doesn't exists, please enter a new one!")
+        log.error(f"{name} doesn't exist!")
         return False
 
 
 def get_config_map_list(namespace=cfg_namespace):
     val = v1.list_namespaced_config_map(namespace=namespace, pretty=True, _preload_content=False)
     config_map_list = json.loads(val.data)
-    log.debug(f'Config map number={len(config_map_list["items"])}')
+    # log.debug(f'Config map number={len(config_map_list["items"])}')
     return config_map_list["items"]
 
 
@@ -107,9 +107,13 @@ if __name__ == '__main__':
         while True:
             check_configmap = v1.read_namespaced_config_map(configmap_name, cfg_namespace)
             static_nodes = json.loads(check_configmap.data["static-nodes.json"])
-            log.info(f"Event: {check_configmap.metadata.name} {json.dumps(static_nodes)}")
+            log.info(f"Event: {check_configmap.metadata.name}\n{json.dumps(static_nodes)}")
+            if set(static_nodes) == set(static_nodes_state):
+                # if previous state and current state is equal we have nothing to do
+                log.info("Nothing to do in this loop...")
             if set(static_nodes) != set(static_nodes_state):
-                # we will need to remove dead peers
+                # union existing state and configmap state; any race conditions from other sidecars will be mitigated
+                # by maintaining personal state that should not be wiped
                 static_nodes_state = set(static_nodes_state) | set(static_nodes)
                 items_to_remove = []
                 for node in static_nodes_state:
@@ -126,17 +130,13 @@ if __name__ == '__main__':
                         # if node in list is alive we add to geth
                         w3.geth.admin.add_peer(node)
                         log.info(f"{_ip}:{_port} is alive. Adding peer to Geth...")
-                for item in items_to_remove:
-                    static_nodes_state.remove(item)
+                static_nodes_state = [x for x in static_nodes_state if x not in items_to_remove]
                 if len(items_to_remove) > 0 or enode not in set(static_nodes):
                     log.info("Patching because there are items to remove or needs to add itself")
                     patch_namespaced_config_map(cfg_namespace, get_static_config_map_body(cfg_namespace,
                                                                                           configmap_name,
                                                                                           list(static_nodes_state)))
                 log.info(f"Patched configmap with: {static_nodes_state}")
-            else:
-                # if previous state and current state is equal we have nothing to do
-                log.info("Nothing to do in this loop...")
             new_delay = randint(1, 15)
             log.info(f"Sleeping for {new_delay}. Waiting for next iteration...")
             sleep(new_delay)
