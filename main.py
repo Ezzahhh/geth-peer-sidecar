@@ -38,7 +38,7 @@ def create_namespaced_config_map(namespace=cfg_namespace, body=None):
         val = v1.create_namespaced_config_map(namespace, config_map_json, pretty=True, _preload_content=False,
                                               async_req=False)
         ret_dict = json.loads(val.data)
-        log.info(f'create succeed\n{json.dumps(ret_dict)}')
+        log.info(f'create succeeded')
         return True
 
 
@@ -49,9 +49,9 @@ def patch_namespaced_config_map(namespace=cfg_namespace, body=None):
     name = body['metadata']['name']
     if judge_config_map_exists(namespace, name):
         val = v1.patch_namespaced_config_map(name=name, namespace=namespace, body=config_map_json,
-                                                 _preload_content=False, async_req=False)
+                                             _preload_content=False, async_req=False)
         ret_dict = json.loads(val.data)
-        log.info(f'patch succeed\n{json.dumps(ret_dict)}')
+        log.info(f'patch succeeded')
         return True
     else:
         log.error(f"{name} doesn't exists, please enter a new one!")
@@ -105,7 +105,7 @@ if __name__ == '__main__':
     enode = ""
     while not enode:
         try:
-            enode = w3.geth.admin.node_info().enode # obtain enode of shared geth pod
+            enode = w3.geth.admin.node_info().enode  # obtain enode of shared geth pod
             log.info(f"Geth online with enode: {enode}")
         except Exception as e:
             log.error("Geth is not yet available. Retrying in 5 seconds...", exc_info=True)
@@ -125,7 +125,7 @@ if __name__ == '__main__':
             log.info(f"Event: {check_configmap.metadata.name} {json.dumps(static_nodes)}")
             if list(set(static_nodes) - set(static_nodes_state)):
                 # we will need to remove dead peers
-                static_nodes_state = set(static_nodes_state + static_nodes)
+                static_nodes_state = set(static_nodes_state) | set(static_nodes)
                 for node in static_nodes:
                     if enode == node:
                         log.info("Skipping because current enode should already be added...")
@@ -143,7 +143,7 @@ if __name__ == '__main__':
                         log.info(f"Node {_ip}:{_port} is alive. Adding peer to Geth...")
                 patch_namespaced_config_map(cfg_namespace, get_static_config_map_body(cfg_namespace,
                                                                                       configmap_name,
-                                                                                      static_nodes_state))
+                                                                                      list(static_nodes_state)))
                 log.info(f"Patched configmap with: {static_nodes_state}")
             else:
                 # if previous state and current state is equal we have nothing to do
