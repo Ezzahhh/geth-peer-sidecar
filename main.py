@@ -111,6 +111,7 @@ if __name__ == '__main__':
             if set(static_nodes) != set(static_nodes_state):
                 # we will need to remove dead peers
                 static_nodes_state = set(static_nodes_state) | set(static_nodes)
+                items_to_remove = []
                 for node in static_nodes_state:
                     if enode == node:
                         log.info("Skipping because current enode should already be added...")
@@ -119,12 +120,14 @@ if __name__ == '__main__':
                     _ip, _port = str(node).split("@")[1].split(":")
                     if not check_port_is_alive(_ip, int(_port)):
                         log.info(f'{_ip}:{_port} is unreachable. Removing...')
-                        static_nodes_state.remove(node)
+                        items_to_remove.append(node)
                         log.debug(f'static_nodes_state: {static_nodes_state}')
                     else:
                         # if node in list is alive we add to geth
                         w3.geth.admin.add_peer(node)
                         log.info(f"{_ip}:{_port} is alive. Adding peer to Geth...")
+                for item in items_to_remove:
+                    static_nodes_state.remove(item)
                 patch_namespaced_config_map(cfg_namespace, get_static_config_map_body(cfg_namespace,
                                                                                       configmap_name,
                                                                                       list(static_nodes_state)))
