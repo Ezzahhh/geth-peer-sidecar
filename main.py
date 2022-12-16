@@ -117,20 +117,16 @@ if __name__ == '__main__':
         log.info(f"Sleep {str(delay)} s before attempting to create configmap")
         sleep(delay)
         create_namespaced_config_map(cfg_namespace,
-                                     get_static_config_map_body(cfg_namespace, configmap_name, []))
+                                     get_static_config_map_body(cfg_namespace, configmap_name, [enode]))
         static_nodes_state = [enode]
         while True:
             check_configmap = v1.read_namespaced_config_map(configmap_name, cfg_namespace)
             static_nodes = json.loads(check_configmap.data["static-nodes.json"])
+            static_nodes.sort()
             log.info(f"Event: {check_configmap.metadata.name} {json.dumps(static_nodes)}")
-            if enode not in static_nodes:
-                log.info(f'Current enode {enode} not found in configmap. Appending to state...')
-                static_nodes.append(enode)
-                w3.geth.admin.add_peer(enode)
-                log.info(f'Added enode {enode} to peer list...')
             if static_nodes_state != static_nodes:
                 # we will need to remove dead peers
-                static_nodes_state = static_nodes
+                static_nodes_state += static_nodes
                 for node in static_nodes:
                     if enode == node:
                         log.info("Skipping because current enode should already be added...")
@@ -149,6 +145,7 @@ if __name__ == '__main__':
                 patch_namespaced_config_map(cfg_namespace, get_static_config_map_body(cfg_namespace,
                                                                                       configmap_name,
                                                                                       static_nodes_state))
+                static_nodes_state.sort()
                 log.info(f"Patched configmap with: {static_nodes_state}")
             else:
                 # if previous state and current state is equal we have nothing to do
