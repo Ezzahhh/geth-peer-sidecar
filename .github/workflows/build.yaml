@@ -26,7 +26,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           push: true
-          tags: ezzah/geth-peer-sidecar:latest
+          tags: ezzah/geth-peer-sidecar:latest, ezzah/geth-peer-sidecar:${{ github.sha }}
           context: .
           platforms: |-
               linux/amd64
