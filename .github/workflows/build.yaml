@@ -27,3 +27,11 @@ jobs:
         with:
           push: true
           tags: ezzah/geth-peer-sidecar:latest
+          context: .
+          platforms: |-
+              linux/amd64
+              linux/arm64
+          file: ./Dockerfile
+          pull: true
+          cache-from: type=gha
+          cache-to: type=gha
