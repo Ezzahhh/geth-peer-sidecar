@@ -134,7 +134,9 @@ if __name__ == '__main__':
                     patch_namespaced_config_map(cfg_namespace, get_static_config_map_body(cfg_namespace,
                                                                                           configmap_name,
                                                                                           list(static_nodes_state)))
-                log.info(f"Patched configmap with: {static_nodes_state}")
+                    log.info(f"Patched configmap with: {static_nodes_state}")
+                else:
+                    log.info("No need to patch. No items to remove and current enode exists...")
             new_delay = randint(1, 15)
             log.info(f"Sleeping for {new_delay}. Waiting for next iteration...")
             sleep(new_delay)
