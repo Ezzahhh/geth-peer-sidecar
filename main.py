@@ -128,7 +128,10 @@ if __name__ == '__main__':
                         log.info(f"{_ip}:{_port} is alive. Adding peer to Geth...")
                         w3.geth.admin.add_peer(node)
                 static_nodes_state = [x for x in static_nodes_state if x not in items_to_remove]
-                if len(items_to_remove) > 0 or enode not in set(static_nodes):
+                if len(items_to_remove) > 0 and not set(items_to_remove).issubset(set(static_nodes)):
+                    log.debug(f"Found enodes in previous state that are no longer reflected in configmap. Skipping "
+                              f"patch...\n{items_to_remove}")
+                if (len(items_to_remove) > 0 and set(items_to_remove).issubset(set(static_nodes))) or enode not in set(static_nodes):
                     log.info("Patching because there are items to remove or needs to add itself")
                     log.debug(f'items to remove: {items_to_remove}')
                     patch_namespaced_config_map(cfg_namespace, get_static_config_map_body(cfg_namespace,
