@@ -6,6 +6,7 @@ from web3 import Web3
 
 from logger import *
 from config import *
+from signal_handler import GracefulKiller
 
 v1 = client.CoreV1Api(aApiClient)
 
@@ -104,7 +105,8 @@ if __name__ == '__main__':
         create_namespaced_config_map(cfg_namespace,
                                      get_static_config_map_body(cfg_namespace, configmap_name, [enode]))
         static_nodes_state = [enode]
-        while True:
+        killer = GracefulKiller()
+        while not killer.kill_now:
             check_configmap = v1.read_namespaced_config_map(configmap_name, cfg_namespace)
             static_nodes = json.loads(check_configmap.data["static-nodes.json"])
             log.info(f"Existing static nodes:\n{json.dumps(static_nodes)}")
@@ -137,13 +139,19 @@ if __name__ == '__main__':
                     log.debug(f'current enode to be added: {enode_in_static_nodes}')
                     patch_namespaced_config_map(cfg_namespace, get_static_config_map_body(cfg_namespace,
                                                                                           configmap_name,
-                                                                                          list(static_nodes_state)))
+                                                                                          static_nodes_state))
                     log.info(f"Patched configmap with: {static_nodes_state}")
                 else:
                     log.info("No need to patch. No items to remove and current enode exists...")
             new_delay = randint(1, 15)
             log.info(f"Sleeping for {new_delay}. Waiting for next iteration...")
             sleep(new_delay)
+        log.info("Received SIGTERM/SIGINT. Will remove enode from configmap...")
+        static_nodes_state.remove(enode)
+        patch_namespaced_config_map(cfg_namespace, get_static_config_map_body(cfg_namespace,
+                                                                              configmap_name,
+                                                                              static_nodes_state))
+        log.debug(f"{static_nodes_state}")
     except FileNotFoundError:
         log.error('Could not find IPC file')
     except ConfigException as e:
