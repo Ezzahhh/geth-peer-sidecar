@@ -6,7 +6,7 @@ from web3 import Web3
 
 from logger import *
 from config import *
-from signal import GracefulKiller
+from signal_handler import GracefulKiller
 
 v1 = client.CoreV1Api(aApiClient)
 
