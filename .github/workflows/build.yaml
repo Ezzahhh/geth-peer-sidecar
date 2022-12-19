@@ -32,7 +32,6 @@ jobs:
           tags: ezzah/geth-peer-sidecar:${{ env.TAG }}, ezzah/geth-peer-sidecar:${{ github.sha }}
           platforms: |-
               linux/amd64
-              linux/arm64
           pull: true
           cache-from: type=gha
           cache-to: type=gha
