@@ -4,10 +4,13 @@ on:
   push:
     branches:
       - 'main'
+      - 'develop'
 
 jobs:
   docker:
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ (github.ref_name == 'main' && 'latest') || github.ref_name }}
     steps:
       -
         name: Set up QEMU
@@ -26,4 +29,9 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           push: true
-          tags: ezzah/geth-peer-sidecar:latest
+          tags: ezzah/geth-peer-sidecar:${{ env.TAG }}, ezzah/geth-peer-sidecar:${{ github.sha }}
+          platforms: |-
+              linux/amd64
+          pull: true
+          cache-from: type=gha
+          cache-to: type=gha
