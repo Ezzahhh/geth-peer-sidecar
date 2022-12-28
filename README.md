@@ -78,7 +78,6 @@ spec:
   selector:
     matchLabels:
       app: geth
-  serviceName: "nginx"
   replicas: 1
   template:
     metadata:
